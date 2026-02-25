@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import Foundation
+import HTTPTypes
 import Hummingbird
 import PrivacyPass
 
@@ -35,7 +36,7 @@ struct PrivacyPassController<UserAuthenticator: UserTokenAuthenticator> {
     }
 
     @Sendable
-    func tokenIssuerDirectory(request _: Request, context _: AppContext) async throws -> TokenIssuerDirectory {
+    func tokenIssuerDirectory(request: Request, context _: AppContext) async throws -> TokenIssuerDirectory {
         let tokenKeys = try await state.issuers.values.map(\.privateKey.publicKey).map { publicKey in
             let spki = try publicKey.spki()
             return TokenIssuerDirectory.TokenKey(
@@ -43,9 +44,25 @@ struct PrivacyPassController<UserAuthenticator: UserTokenAuthenticator> {
                 tokenKeyBase64Url: spki.base64URLEncodedString(),
                 notBefore: nil)
         }
-        // swiftlint:disable:next force_unwrapping
-        let issuerRequestUri = URL(string: "/issue")!
+        let issuerRequestUri = Self.absoluteIssuerRequestURI(from: request)
         return TokenIssuerDirectory(issuerRequestUri: issuerRequestUri, tokenKeys: tokenKeys)
+    }
+
+    /// Builds an absolute URL for the token issuer so clients (e.g. iOS) can fetch tokens without resolving a relative URI.
+    /// RFC 9578 allows "issuer-request-uri" to be absolute or relative; returning an absolute URL avoids error 1100
+    /// ("failed to fetch token") when the client does not resolve a relative "/issue" correctly.
+    private static func absoluteIssuerRequestURI(from request: Request) -> URL {
+        guard let host = request.headers[.host] else {
+            // swiftlint:disable:next force_unwrapping
+            return URL(string: "/issue")!
+        }
+        let scheme = request.headers[.xForwardedProto] ?? "https"
+        // Ensure path is single /issue (no double slash); host may or may not include port
+        guard let url = URL(string: "\(scheme)://\(host)/issue") else {
+            // swiftlint:disable:next force_unwrapping
+            return URL(string: "/issue")!
+        }
+        return url
     }
 
     @Sendable
@@ -74,4 +91,11 @@ struct PrivacyPassController<UserAuthenticator: UserTokenAuthenticator> {
 
         return try issuer.issue(request: tokenRequest)
     }
+}
+
+private extension HTTPField.Name {
+    // swiftlint:disable:next force_unwrapping
+    static var host: Self { Self("Host")! }
+    // swiftlint:disable:next force_unwrapping
+    static var xForwardedProto: Self { Self("X-Forwarded-Proto")! }
 }
