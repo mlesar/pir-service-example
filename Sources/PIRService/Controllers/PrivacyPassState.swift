@@ -30,6 +30,7 @@ actor PrivacyPassState<UserAuthenticator: UserTokenAuthenticator> {
     var issuers: [UserTier: PrivacyPass.Issuer]
     // map from truncate key id to verifier & tier
     var verifiers: [UInt8: TieredVerifier]
+    var issuerBaseURL: URL?
 
     init(userAuthenticator: UserAuthenticator) throws {
         var issuers: [UserTier: PrivacyPass.Issuer] = [:]
@@ -49,5 +50,10 @@ actor PrivacyPassState<UserAuthenticator: UserTokenAuthenticator> {
         self.userAuthenticator = userAuthenticator
         self.issuers = issuers
         self.verifiers = verifiers
+        self.issuerBaseURL = nil
+    }
+
+    func setIssuerBaseURL(_ url: URL?) {
+        issuerBaseURL = url
     }
 }

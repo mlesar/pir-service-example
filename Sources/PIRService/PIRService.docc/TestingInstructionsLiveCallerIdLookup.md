@@ -206,6 +206,7 @@ Copy the following to a file called `service-config.json`.
 
 ```json
 {
+  "issuerBaseURL": "https://pir.example.com",
   "users": [
     {
       "tier": "tier1",
@@ -231,11 +232,12 @@ Copy the following to a file called `service-config.json`.
 }
 ```
 
-This configuration file has 3 sections.
+This configuration file has the following sections.
 
-1. `users` - This is a mapping from user tiers to User Tokens that are allowed for that tier. The User tokens are
+1. `issuerBaseURL` (optional) — Service domain or host URL (e.g. `https://pir.example.com`). The server appends `/issue` and uses it in the token issuer directory so clients get an absolute URL and error 1100 is avoided. If omitted, the server falls back to the relative path `/issue` (original behavior); that can cause error 1100 on some clients.
+2. `users` - This is a mapping from user tiers to User Tokens that are allowed for that tier. The User tokens are
    already base64 encoded as they appear in the HTTP `Authorization` header.
-2. `usecases` - This is a list of usecases, where each usecase has the `fileStem`, `shardCount`, and `name`. When
+3. `usecases` - This is a list of usecases, where each usecase has the `fileStem`, `shardCount`, and `name`. When
    loading the usecase, `PIRService` does something like:
 ```swift
 self.shards = try (0..<shardCount).map { shardIndex in
@@ -247,6 +249,8 @@ self.shards = try (0..<shardCount).map { shardIndex in
 The `name` will be used by the device to identify the dataset. In this example, we assume that the bundle identifier of
 the on-device Live Caller ID Lookup Extension is `net.example.lookup`. Then the system will try to fetch the blocking
 information from `net.example.lookup.block` and the identity information from `net.example.lookup.identity`.
+
+For production, set `issuerBaseURL` to your public domain (e.g. `https://pir.nomorobo.com`).
 
 After the configuration file is as it should be, it is time to run the example service:
 

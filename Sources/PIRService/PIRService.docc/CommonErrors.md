@@ -46,14 +46,14 @@ UserInfo={NSLocalizedDescription=failed to fetch token}}}
 **Reason:**
 The device could not obtain a Privacy Pass token. Common causes:
 
-1. **Relative `issuer-request-uri`** — The `/.well-known/private-token-issuer-directory` response must tell the client where to send token requests. If the server returns only a path (e.g. `"issuer-request-uri": "/issue"`) without the full URL, some clients may fail to fetch tokens (error 1100). RFC 9578 allows either an absolute URL or a relative URL; returning an **absolute** URL (e.g. `https://your-domain.com/issue`) avoids this. This implementation builds an absolute URL from the request `Host` and `X-Forwarded-Proto` headers when available.
+1. **Relative `issuer-request-uri`** — The `/.well-known/private-token-issuer-directory` response must tell the client where to send token requests. If the server returns only a path (e.g. `"issuer-request-uri": "/issue"`) without the full URL, some clients may fail to fetch tokens (error 1100). Set `issuerBaseURL` in `service-config.json` to your domain so the server returns an absolute URL.
 
 2. **Misconfigured issuer URL in the app** — In the extension context, if you set the token issuer URL to a value that omits the path (e.g. `http://MacBook-Pro.local:8080/` instead of `http://MacBook-Pro.local:8080/issue`), the client may not know where to request tokens.
 
 3. **User token not accepted** — The user token in the extension must match one of the tokens in the service’s `service-config.json` for the intended tier.
 
 **Workaround:**
-- Ensure the **server** returns an absolute `issuer-request-uri` in the token issuer directory (e.g. `https://pir.example.com/issue`). When the server has a `Host` header, this implementation does that automatically; behind a proxy, set `X-Forwarded-Proto` so the scheme is correct.
+- Set `issuerBaseURL` in `service-config.json` to your domain (e.g. `https://pir.example.com`); the server appends `/issue` and returns that as the absolute `issuer-request-uri` in the token issuer directory.
 - In the **app**, set the token issuer URL to the full issuer endpoint, including the path: `http://MacBook-Pro.local:8080/issue` (not just `http://MacBook-Pro.local:8080/`).
 - Ensure the user token in the extension matches one in `service-config.json`.
 

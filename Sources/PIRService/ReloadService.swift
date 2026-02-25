@@ -58,7 +58,7 @@ struct ServerConfiguration: Codable {
         let tokens: [String]
     }
 
-    let issuerRequestUri: String?
+    let issuerBaseURL: String?
     let users: [UserGroup]
     let usecases: [Usecase]
 }
@@ -119,6 +119,12 @@ actor ReloadService: Service {
             }
         }
         await privacyPassState.userAuthenticator.update(allowList: allowedUsers)
+
+        if let uriString = config.issuerBaseURL, let url = URL(string: uriString) {
+            await privacyPassState.setIssuerBaseURL(url)
+        } else {
+            await privacyPassState.setIssuerBaseURL(nil)
+        }
 
         for usecase in config.usecases {
             // default to two versions
