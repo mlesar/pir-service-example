@@ -173,6 +173,57 @@ struct PIRServiceTests {
     }
 
     @Test
+    func userTierIncludesTier4() {
+        #expect(UserTier.allCases.contains(.tier4))
+    }
+
+    @Test
+    func tierUsecaseGating() async throws {
+        let usecaseStore = UsecaseStore()
+        try await usecaseStore.set(name: TierUsecases.identity, usecase: ExampleUsecase.hundred)
+        try await usecaseStore.set(name: TierUsecases.block, usecase: ExampleUsecase.ten)
+        let userAuthenticator = UserAuthenticator()
+        await userAuthenticator.add(token: "ABCD", tier: .tier1)
+        await userAuthenticator.add(token: "EFGH", tier: .tier2)
+        let privacyPassState = try PrivacyPassState(userAuthenticator: userAuthenticator)
+        let app = try await buildApplication(
+            usecaseStore: usecaseStore,
+            privacyPassState: privacyPassState)
+        try await app.test(.live) { client in
+            var tier1Client = PIRClient<MulPirClient<Bfv<UInt32>>>(connection: client, userToken: "ABCD")
+            var tier2Client = PIRClient<MulPirClient<Bfv<UInt32>>>(connection: client, userToken: "EFGH")
+
+            // Tier1 can fetch config for both usecases (identity + block).
+            _ = try await tier1Client.fetchKeyStatus(for: TierUsecases.identity)
+            _ = try await tier1Client.fetchKeyStatus(for: TierUsecases.block)
+
+            // Tier2 can fetch config only for identity; block is not allowed.
+            _ = try await tier2Client.fetchKeyStatus(for: TierUsecases.identity)
+            await #expect { try await tier2Client.fetchKeyStatus(for: TierUsecases.block) }
+                throws: { error in
+                    error is PIRClientError
+                }
+
+            // Tier2 querying a disallowed usecase (block) gets 403. Use tier1's config/keys so we can build the query.
+            tier2Client.configCache = tier1Client.configCache
+            tier2Client.secretKeys = tier1Client.secretKeys
+            await #expect {
+                _ = try await tier2Client.request(
+                    keywords: [.init("23".utf8)],
+                    usecase: TierUsecases.block,
+                    allowKeyRotation: false)
+            } throws: { error in
+                if let error = error as? PIRClientError,
+                   case let .serverError(status, _) = error
+                {
+                    return status == .forbidden
+                }
+                return false
+            }
+        }
+    }
+
+    @Test
     func pirConfigExtensions() throws {
         var config = try ExampleUsecase.repeatedShardConfig.config()
         #expect(config.pirConfig.shardConfigs.isEmpty)

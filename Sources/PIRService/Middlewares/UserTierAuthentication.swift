@@ -19,6 +19,7 @@ enum UserTier: String, Equatable, CaseIterable, Hashable, Codable {
     case tier1
     case tier2
     case tier3
+    case tier4
 }
 
 protocol AuthenticatedRequestContext: RequestContext {

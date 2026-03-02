@@ -248,7 +248,7 @@ self.shards = try (0..<shardCount).map { shardIndex in
 ```
 The `name` will be used by the device to identify the dataset. In this example, we assume that the bundle identifier of
 the on-device Live Caller ID Lookup Extension is `net.example.lookup`. Then the system will try to fetch the blocking
-information from `net.example.lookup.block` and the identity information from `net.example.lookup.identity`.
+information from `net.example.lookup.block` and the identity information from `net.example.lookup.identity`. Tier-based gating restricts which usecases each tier can access: usecase names must be `identity` and `block` (tier1: both, tier2: identity only, tier3: block only, tier4: none).
 
 For production, set `issuerBaseURL` to your public domain (e.g. `https://pir.nomorobo.com`).
 

@@ -83,12 +83,27 @@ struct PIRServiceController {
                 """)
         }
 
-        let existingConfigIds = configRequest.existingConfigIds.isEmpty ? Array(
-            repeating: Data(),
-            count: requestedUsecases.count) : configRequest.existingConfigIds
+        let allowed = TierUsecases.allowed(for: context.userTier)
+        let orderedNames = configRequest.usecases.isEmpty
+            ? Array(requestedUsecases.keys)
+            : configRequest.usecases
+        let orderedNamesForResponse = orderedNames.filter { allowed.contains($0) }
+        let filteredRequestedUsecases: [String: Usecase] = .init(uniqueKeysWithValues: orderedNamesForResponse.compactMap { name in
+            requestedUsecases[name].map { (name, $0) }
+        })
+
+        let existingConfigIds: [Data]
+        if configRequest.existingConfigIds.isEmpty {
+            existingConfigIds = Array(repeating: Data(), count: orderedNamesForResponse.count)
+        } else {
+            existingConfigIds = orderedNamesForResponse.compactMap { name in
+                configRequest.usecases.firstIndex(of: name).map { configRequest.existingConfigIds[$0] }
+            }
+        }
+
         var configs = [String: Apple_SwiftHomomorphicEncryption_Api_Pir_V1_Config]()
-        for (usecaseName, configId) in zip(requestedUsecases.keys, existingConfigIds) {
-            if let usecase = requestedUsecases[usecaseName] {
+        for (usecaseName, configId) in zip(orderedNamesForResponse, existingConfigIds) {
+            if let usecase = filteredRequestedUsecases[usecaseName] {
                 var config = try usecase.config(existingConfigId: Array(configId))
                 if let platform = context.platform {
                     try config.makeCompatible(with: platform)
@@ -97,7 +112,7 @@ struct PIRServiceController {
             }
         }
 
-        let keyConfigs = try requestedUsecases.values.map { try $0.evaluationKeyConfig() }
+        let keyConfigs = try filteredRequestedUsecases.values.map { try $0.evaluationKeyConfig() }
         let keyStatusesSequence = keyConfigs.async.map { keyConfig in
             let keyConfigHash = try keyConfig.sha256()
             let key = Self.persistKey(user: context.userIdentifier, configHash: keyConfigHash)
@@ -131,7 +146,11 @@ struct PIRServiceController {
             context.logger.info("usecase=\(requests.requests.map(\.usecase)), duration=\(duration * 1000)ms")
         }
 
+        let allowedUsecases = TierUsecases.allowed(for: context.userTier)
         let responsesSequence = requests.requests.async.map { request in
+            if !allowedUsecases.contains(request.usecase) {
+                throw HTTPError(.forbidden, message: "Usecase '\(request.usecase)' is not allowed for your tier")
+            }
             switch request.request {
             case let .oprfRequest(oprfRequest):
                 guard let usecase = await usecases.get(name: request.usecase) else {
