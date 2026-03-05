@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import Logging
+
 actor UserAuthenticator: UserTokenAuthenticator {
     var allowList: [String: UserTier]
+    var allowAnyToken: Bool
+    let logger: Logger
 
-    init() {
+    init(logger: Logger) {
         self.allowList = [:]
+        self.allowAnyToken = false
+        self.logger = logger
     }
 
     func add(token: String, tier: UserTier) {
@@ -24,10 +30,15 @@ actor UserAuthenticator: UserTokenAuthenticator {
     }
 
     func authenticate(userToken: String) async throws -> UserTier? {
-        allowList[userToken]
+        if allowAnyToken {
+            logger.info("allowAnyToken: accepting user token as tier1")
+            return .tier1
+        }
+        return allowList[userToken]
     }
 
-    func update(allowList: [String: UserTier]) {
+    func update(allowList: [String: UserTier], allowAnyToken: Bool) {
         self.allowList = allowList
+        self.allowAnyToken = allowAnyToken
     }
 }

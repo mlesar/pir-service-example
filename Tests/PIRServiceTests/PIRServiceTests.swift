@@ -15,6 +15,7 @@
 import Foundation
 import HomomorphicEncryption
 import Hummingbird
+import Logging
 @testable import PIRService
 @testable import PIRServiceTesting
 import PrivateInformationRetrieval
@@ -53,7 +54,7 @@ struct PIRServiceTests {
     func requestWithPrivacyPass() async throws {
         let usecaseStore = UsecaseStore()
         try await usecaseStore.set(name: "test", usecase: ExampleUsecase.hundred)
-        let userAuthenticator = UserAuthenticator()
+        let userAuthenticator = UserAuthenticator(logger: Logger(label: "TestUserAuthenticator"))
         await userAuthenticator.add(token: "ABCD", tier: .tier1)
         let privacyPassState = try PrivacyPassState(userAuthenticator: userAuthenticator)
         let app = try await buildApplication(usecaseStore: usecaseStore, privacyPassState: privacyPassState)
@@ -109,7 +110,7 @@ struct PIRServiceTests {
     func addingAndRemovingUserTokens() async throws {
         let usecaseStore = UsecaseStore()
         try await usecaseStore.set(name: "test", usecase: ExampleUsecase.hundred)
-        let userAuthenticator = UserAuthenticator()
+        let userAuthenticator = UserAuthenticator(logger: Logger(label: "TestUserAuthenticator"))
         let privacyPassState = try PrivacyPassState(userAuthenticator: userAuthenticator)
         let app = try await buildApplication(usecaseStore: usecaseStore, privacyPassState: privacyPassState)
         try await app.test(.live) { client in
@@ -130,7 +131,7 @@ struct PIRServiceTests {
             _ = try await pirClient.request(keyword: "42")
 
             // remove the user token
-            await userAuthenticator.update(allowList: [:])
+            await userAuthenticator.update(allowList: [:], allowAnyToken: false)
 
             // at least one more request should succeed because of cached tokens
             _ = try await pirClient.request(keyword: "42")
@@ -182,7 +183,7 @@ struct PIRServiceTests {
         let usecaseStore = UsecaseStore()
         try await usecaseStore.set(name: TierUsecases.identity, usecase: ExampleUsecase.hundred)
         try await usecaseStore.set(name: TierUsecases.block, usecase: ExampleUsecase.ten)
-        let userAuthenticator = UserAuthenticator()
+        let userAuthenticator = UserAuthenticator(logger: Logger(label: "TestUserAuthenticator"))
         await userAuthenticator.add(token: "ABCD", tier: .tier1)
         await userAuthenticator.add(token: "EFGH", tier: .tier2)
         let privacyPassState = try PrivacyPassState(userAuthenticator: userAuthenticator)
@@ -195,7 +196,7 @@ struct PIRServiceTests {
 
             // Tier1 can fetch config for both usecases (identity + block).
             _ = try await tier1Client.fetchKeyStatus(for: TierUsecases.identity)
-            _ = try await tier1Client.fetchKeyStatus(for: TierUsecases.block)
+            try await tier1Client.rotateKey(for: TierUsecases.block)
 
             // Tier2 can fetch config only for identity; block is not allowed.
             _ = try await tier2Client.fetchKeyStatus(for: TierUsecases.identity)

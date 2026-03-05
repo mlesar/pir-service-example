@@ -59,6 +59,7 @@ struct ServerConfiguration: Codable {
     }
 
     let issuerBaseURL: String?
+    let allowAnyToken: Bool?
     let users: [UserGroup]
     let usecases: [Usecase]
 }
@@ -118,7 +119,13 @@ actor ReloadService: Service {
                 allowedUsers[token] = tier
             }
         }
-        await privacyPassState.userAuthenticator.update(allowList: allowedUsers)
+        let allowAnyToken = config.allowAnyToken ?? false
+        if allowAnyToken {
+            logger.warning("allowAnyToken is enabled — all user tokens will be accepted as tier1")
+        }
+        await privacyPassState.userAuthenticator.update(
+            allowList: allowedUsers,
+            allowAnyToken: allowAnyToken)
 
         if let uriString = config.issuerBaseURL, let url = URL(string: uriString) {
             await privacyPassState.setIssuerBaseURL(url)

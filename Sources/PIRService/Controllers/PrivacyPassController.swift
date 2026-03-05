@@ -43,12 +43,11 @@ struct PrivacyPassController<UserAuthenticator: UserTokenAuthenticator> {
                 tokenKeyBase64Url: spki.base64URLEncodedString(),
                 notBefore: nil)
         }
-        let issuerRequestUri: URL
-        if let base = await state.issuerBaseURL {
-            issuerRequestUri = base.appending(path: "issue")
+        let issuerRequestUri: URL = if let base = await state.issuerBaseURL {
+            base.appending(path: "issue")
         } else {
             // swiftlint:disable:next force_unwrapping
-            issuerRequestUri = URL(string: "/issue")!
+            URL(string: "/issue")!
         }
         return TokenIssuerDirectory(issuerRequestUri: issuerRequestUri, tokenKeys: tokenKeys)
     }

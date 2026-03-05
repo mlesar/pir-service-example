@@ -15,6 +15,7 @@
 import ArgumentParser
 import Foundation
 import Hummingbird
+import Logging
 import ServiceLifecycle
 
 // This executable is used in tests, which breaks `swift test -c release` when used with `@main`.
@@ -29,7 +30,8 @@ struct ServerCommand: AsyncParsableCommand {
 
     func run() async throws {
         let usecaseStore = UsecaseStore()
-        let privacyPassState = try PrivacyPassState(userAuthenticator: UserAuthenticator())
+        let privacyPassState = try PrivacyPassState(
+            userAuthenticator: UserAuthenticator(logger: Logger(label: "UserAuthenticator")))
 
         let app = try await buildApplication(
             configuration: .init(address: .hostname(hostname, port: port)),

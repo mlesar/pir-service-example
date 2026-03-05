@@ -83,20 +83,19 @@ struct PIRServiceController {
                 """)
         }
 
-        let allowed = TierUsecases.allowed(for: context.userTier)
         let orderedNames = configRequest.usecases.isEmpty
             ? Array(requestedUsecases.keys)
             : configRequest.usecases
-        let orderedNamesForResponse = orderedNames.filter { allowed.contains($0) }
-        let filteredRequestedUsecases: [String: Usecase] = .init(uniqueKeysWithValues: orderedNamesForResponse.compactMap { name in
-            requestedUsecases[name].map { (name, $0) }
-        })
+        let orderedNamesForResponse = orderedNames.filter { TierUsecases.isAllowed($0, for: context.userTier) }
+        let filteredRequestedUsecases: [String: Usecase] = .init(uniqueKeysWithValues: orderedNamesForResponse
+            .compactMap { name in
+                requestedUsecases[name].map { (name, $0) }
+            })
 
-        let existingConfigIds: [Data]
-        if configRequest.existingConfigIds.isEmpty {
-            existingConfigIds = Array(repeating: Data(), count: orderedNamesForResponse.count)
+        let existingConfigIds: [Data] = if configRequest.existingConfigIds.isEmpty {
+            Array(repeating: Data(), count: orderedNamesForResponse.count)
         } else {
-            existingConfigIds = orderedNamesForResponse.compactMap { name in
+            orderedNamesForResponse.compactMap { name in
                 configRequest.usecases.firstIndex(of: name).map { configRequest.existingConfigIds[$0] }
             }
         }
@@ -146,9 +145,8 @@ struct PIRServiceController {
             context.logger.info("usecase=\(requests.requests.map(\.usecase)), duration=\(duration * 1000)ms")
         }
 
-        let allowedUsecases = TierUsecases.allowed(for: context.userTier)
         let responsesSequence = requests.requests.async.map { request in
-            if !allowedUsecases.contains(request.usecase) {
+            if !TierUsecases.isAllowed(request.usecase, for: context.userTier) {
                 throw HTTPError(.forbidden, message: "Usecase '\(request.usecase)' is not allowed for your tier")
             }
             switch request.request {

@@ -14,7 +14,8 @@
 
 import Foundation
 
-/// Mapping of user tier to allowed usecase names. Server config usecase names should match these when using tier gating.
+/// Mapping of user tier to allowed usecase names. Server config usecase names should match these when using tier
+/// gating.
 enum TierUsecases {
     /// Usecase name for identity (caller ID) data.
     static let identity = "identity"
@@ -28,8 +29,14 @@ enum TierUsecases {
         .tier4: [],
     ]
 
-    /// Returns the set of usecase names allowed for the given tier.
-    static func allowed(for tier: UserTier) -> Set<String> {
-        allowlist[tier] ?? []
+    private static let allGatedUsecases: Set<String> = Set(allowlist.values.flatMap(\.self))
+
+    /// Returns whether the usecase is allowed for the given tier.
+    /// Usecases not listed in any tier's allowlist are implicitly allowed for all tiers.
+    static func isAllowed(_ usecase: String, for tier: UserTier) -> Bool {
+        guard allGatedUsecases.contains(usecase) else {
+            return true
+        }
+        return allowlist[tier]?.contains(usecase) ?? false
     }
 }

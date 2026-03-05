@@ -143,6 +143,7 @@ Copy the following to a file called `service-config.json`.
 
 ```json
 {
+  "allowAnyToken": false,
   "users": [
     {
       "tier": "tier1",
@@ -164,9 +165,10 @@ Copy the following to a file called `service-config.json`.
 ```
 This configuration file has 3 sections.
 
-1. `users` - This is a mapping from user tiers to User Tokens that are allowed for that tier. The User tokens are
+1. `allowAnyToken` (optional) — When `true`, accepts any user token and treats it as tier1. Intended for development or testing only. Defaults to `false`. When enabled, `users` may be empty.
+2. `users` - This is a mapping from user tiers to User Tokens that are allowed for that tier. The User tokens are
    already base64 encoded as they appear in the HTTP `Authorization` header.
-2. `usecases` - This is a list of usecases, where each usecase has the `fileStem`, `shardCount`, and `name`. When
+3. `usecases` - This is a list of usecases, where each usecase has the `fileStem`, `shardCount`, and `name`. When
    loading the usecase, `PIRService` does something like:
 ```swift
 self.shards = try (0..<shardCount).map { shardIndex in
